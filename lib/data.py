@@ -200,6 +200,12 @@ def num_process_nans(dataset: Dataset, policy: Optional[NumNanPolicy]) -> Datase
             num_nan_indices = np.where(nan_masks[k])
             v[num_nan_indices] = np.take(new_values, num_nan_indices[1])
         dataset = replace(dataset, X_num=X_num)
+    elif policy == '-1000':
+        X_num = deepcopy(dataset.X_num)
+        for k, v in X_num.items():
+            num_nan_indices = np.where(nan_masks[k])
+            # v[num_nan_indices] = -1000
+        dataset = replace(dataset, X_num=X_num)
     else:
         assert util.raise_unknown('policy', policy)
     return dataset
@@ -247,6 +253,9 @@ def cat_process_nans(X: ArrayDict, policy: Optional[CatNanPolicy]) -> ArrayDict:
             imputer = SimpleImputer(missing_values=CAT_MISSING_VALUE, strategy=policy)  # type: ignore[code]
             imputer.fit(X['train'])
             X_new = {k: cast(np.ndarray, imputer.transform(v)) for k, v in X.items()}
+        elif policy == '-1000':
+            # replace with -1000
+            X_new = {k: np.where(v == CAT_MISSING_VALUE, '-1000', v) for k, v in X.items()}
         else:
             util.raise_unknown('categorical NaN policy', policy)
     else:
@@ -621,6 +630,7 @@ def prepare_fast_torch_dataloader(
     return dataloader
 
 def round_columns(X_real, X_synth, columns):
+    """make sure that the synthetic data has the same values as the real data for the specified columns"""
     for col in columns:
         uniq = np.unique(X_real[:,col])
         dist = cdist(X_synth[:, col][:, np.newaxis].astype(float), uniq[:, np.newaxis].astype(float))
