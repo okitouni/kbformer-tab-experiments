@@ -1,4 +1,5 @@
 from copy import deepcopy
+import tqdm
 import torch
 import os
 import numpy as np
@@ -8,7 +9,6 @@ import lib
 import pandas as pd
 from kbgen.diffusion import HybridDiffusion
 from utils_custom import get_model_dataset
-
 
 class Trainer:
     def __init__(
@@ -58,6 +58,7 @@ class Trainer:
         return loss, torch.zeros_like(loss)
 
     def run_loop(self):
+        pbar = tqdm.tqdm(total=self.steps)
         step = 0
         curr_loss_multi = 0.0
         curr_loss_gauss = 0.0
@@ -93,6 +94,8 @@ class Trainer:
             update_ema(self.ema_model.parameters(), self.diffusion.model.parameters())
 
             step += 1
+            pbar.update(1)
+            pbar.set_description_str(f"{batch_loss_multi.item()}")
 
 
 def train(
