@@ -10,14 +10,17 @@ num_classes = 3
 is_y_cond = true
 
 [model_params.rtdl_params]
-num_decoder_mixtures = 2
-d_model = 128
+num_layers = 1  # Entity encoder layers for entity Encoder
+field_encoder_layers = 1  # number of layers for field encoders
+field_decoder_layers =  1  # number of layers for field decoders
+num_decoder_mixtures = 32   # number of gaussian mixtures for numerical features
+d_model = 256
 dropout = 0.0
 
 [diffusion_params]
 
 [train.main]
-steps = 10_000
+steps = 4_000
 lr = 1e-3
 weight_decay = 0
 batch_size = 4096
