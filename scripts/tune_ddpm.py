@@ -12,11 +12,10 @@ parser.add_argument("ds_name", type=str)
 parser.add_argument("eval_type", type=str)
 parser.add_argument("eval_model", type=str)
 parser.add_argument("prefix", type=str)
-parser.add_argument("--train_size", type=int, default=10_000)
 parser.add_argument("--eval_seeds", action="store_true", default=False)
+parser.add_argument("--device", type=str, default="cuda:0")
 
 args = parser.parse_args()
-train_size = args.train_size
 ds_name = args.ds_name
 eval_type = args.eval_type
 assert eval_type in ("merged", "synthetic")
@@ -34,29 +33,44 @@ os.makedirs(exps_path, exist_ok=True)
 
 
 def objective(trial):
-    lr = trial.suggest_loguniform("lr", 0.00001, 0.03)
+    lr = trial.suggest_loguniform("lr", 1e-5, 0.005)
     num_decoder_mixtures = trial.suggest_int("num_decoder_mixtures", 1, 100, log=True)
-    d_model = trial.suggest_int("d_model", 4, 11)
+    d_model = trial.suggest_int("d_model", 4, 9)
     d_model = 2**d_model
-    weight_decay = 0.0
-    batch_size = trial.suggest_categorical("batch_size", [4096])
-    steps = trial.suggest_categorical('steps', [2000, 5000, 20_000])
-    # steps = trial.suggest_categorical("steps", [100])  # for debug
-    # scheduler = trial.suggest_categorical('scheduler', ['cosine', 'linear'])
+    depth = trial.suggest_int("depth", 1, 2)
+
+    batch_size = trial.suggest_categorical("batch_size", [8192])
+    # init_var = trial.suggest_loguniform("init_var", 1e-2, 2)
+    init_var = 1
+    steps = 5_000
+    # steps = trial.suggest_categorical("steps", [10])  # for debug
+
+    # sampling params
+    # tempreture = trial.suggest_uniform("tempreture", 0.8, 1.2)
+    # leaps = trial.suggest_int("leaps", 1, 5)
 
     base_config = lib.load_config(base_config_path)
 
     base_config["train"]["main"]["lr"] = lr
     base_config["train"]["main"]["steps"] = steps
     base_config["train"]["main"]["batch_size"] = batch_size
-    base_config["train"]["main"]["weight_decay"] = weight_decay
+    base_config["train"]["main"]["weight_decay"] = 0.0
     base_config["model_params"]["rtdl_params"][
         "num_decoder_mixtures"
     ] = num_decoder_mixtures
     base_config["model_params"]["rtdl_params"]["d_model"] = d_model
+    base_config["model_params"]["rtdl_params"]["init_var"] = init_var
+    base_config["model_params"]["rtdl_params"]["num_layers"] = depth
+    base_config["model_params"]["rtdl_params"]["field_encoder_layers"] = depth
+    base_config["model_params"]["rtdl_params"]["field_decoder_layers"] = depth
     base_config["eval"]["type"]["eval_type"] = eval_type
-    base_config["sample"]["num_samples"] = train_size
+    
+    base_config["sample"]["num_samples"] = min(base_config["sample"]["num_samples"], 50_000)
+    base_config["sample"]["batch_size"] = 50_000
+    # base_config["sample"]["leaps"] = leaps
+    # base_config["sample"]["temperature"] = tempreture
 
+    base_config["device"] = args.device
     base_config["parent_dir"] = str(exps_path / f"{trial.number}")
     base_config["eval"]["type"]["eval_model"] = args.eval_model
     if args.eval_model == "mlp":
@@ -120,7 +134,7 @@ study = optuna.create_study(
     sampler=optuna.samplers.TPESampler(seed=0),
 )
 
-study.optimize(objective, n_trials=50, show_progress_bar=True)
+study.optimize(objective, n_trials=100, show_progress_bar=True)
 
 best_config_path = parent_path / f"{prefix}_best/config.toml"
 best_config = study.best_trial.user_attrs["config"]
