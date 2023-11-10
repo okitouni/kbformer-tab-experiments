@@ -1,11 +1,12 @@
 import lib
 from kbgen.model import KBFormer
 from kbgen.config import tabddpm_config as config
+from kbgen.utils import mup_model
 from utils_train import make_dataset
 import numpy as np
 
 
-def get_model_dataset(T_dict, model_params, real_data_path, device, change_val):
+def get_model_dataset(T_dict, model_params, real_data_path, device, change_val, use_mup):
     """get model, dataset and update config with dataset and model params"""
     T = lib.Transformations(**T_dict)
     dataset = make_dataset(
@@ -28,13 +29,21 @@ def get_model_dataset(T_dict, model_params, real_data_path, device, change_val):
     config["dropout"] = model_params["rtdl_params"]["dropout"]
     config["num_decoder_mixtures"] = model_params["rtdl_params"]["num_decoder_mixtures"]
     config["d_model"] = model_params["rtdl_params"]["d_model"]
+    config["init_var"] = model_params["rtdl_params"].get("init_var", 1.0)
 
     # task params
     config["num_numerical_features"] = num_numerical_features
     config["num_category_classes"] = K
     config["is_y_cond"] = model_params["is_y_cond"]
-    config["num_classes"] = model_params["num_classes"]  # this is the target number of classes
+    config["num_classes"] = model_params[
+        "num_classes"
+    ]  # this is the target number of classes
 
-    model = KBFormer(config)
+    # init model with mup
+    if use_mup:
+        model = mup_model(KBFormer, {"d_model": 8}, config)
+    else:
+        model = KBFormer(config)
+    
     model.to(device)
     return model, dataset

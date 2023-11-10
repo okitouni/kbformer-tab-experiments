@@ -55,7 +55,8 @@ def main():
             T_dict=raw_config['train']['T'],
             num_numerical_features=raw_config['num_numerical_features'],
             device=device,
-            change_val=args.change_val
+            change_val=args.change_val,
+            use_mup=raw_config['model_params']['rtdl_params'].get('use_mup', False),
         )
     if args.sample:
         sample(
@@ -72,7 +73,10 @@ def main():
             num_numerical_features=raw_config['num_numerical_features'],
             device=device,
             seed=raw_config['sample'].get('seed', 0),
-            change_val=args.change_val
+            change_val=args.change_val,
+            use_mup=raw_config['model_params']['rtdl_params'].get('use_mup', False),
+            leaps=raw_config['sample'].get('leaps', 1),
+            temperature=raw_config['sample'].get('temperature', 1.0),
         )
 
     save_file(os.path.join(raw_config['parent_dir'], 'info.json'), os.path.join(raw_config['real_data_path'], 'info.json'))

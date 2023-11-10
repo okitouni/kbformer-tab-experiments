@@ -9,6 +9,8 @@ import lib
 import pandas as pd
 from kbgen.diffusion import HybridDiffusion
 from utils_custom import get_model_dataset
+import mup
+
 
 class Trainer:
     def __init__(
@@ -19,6 +21,7 @@ class Trainer:
         weight_decay,
         steps,
         device=torch.device("cuda:1"),
+        use_mup=False,
     ):
         self.diffusion = diffusion
         self.ema_model = deepcopy(self.diffusion.model)
@@ -28,7 +31,8 @@ class Trainer:
         self.train_iter = train_iter
         self.steps = steps
         self.init_lr = lr
-        self.optimizer = torch.optim.AdamW(
+        AdamW = mup.MuAdamW if use_mup else torch.optim.AdamW
+        self.optimizer = AdamW(
             self.diffusion.parameters(), lr=lr, weight_decay=weight_decay
         )
         self.device = device
@@ -47,7 +51,7 @@ class Trainer:
         # concat version of all x_cat, x_num and y in the regression case
         x = x.to(self.device)
         # if torch.isnan(x).any():
-            # raise ValueError("NaNs in input")
+        # raise ValueError("NaNs in input")
         y = y.long().to(self.device)
         self.optimizer.zero_grad()
         loss = self.diffusion.loss(x, y)
@@ -115,6 +119,7 @@ def train(
     device=torch.device("cuda:1"),
     seed=0,
     change_val=False,
+    use_mup=False,
 ):
     real_data_path = os.path.normpath(real_data_path)
     parent_dir = os.path.normpath(parent_dir)
@@ -156,11 +161,9 @@ def train(
     # config["num_category_classes"] = K
     # config["is_y_cond"] = model_params["is_y_cond"]
     # config["num_classes"] = model_params["num_classes"] # TODO wtf is this
-    
-    # model = KBFormer(config)
-    # model.to(device)
+
     model, dataset = get_model_dataset(
-        T_dict, model_params, real_data_path, device, change_val
+        T_dict, model_params, real_data_path, device, change_val, use_mup
     )
     # train_loader = lib.prepare_beton_loader(dataset, split='train', batch_size=batch_size)
     train_loader = lib.prepare_fast_dataloader(
@@ -187,6 +190,7 @@ def train(
         weight_decay=weight_decay,
         steps=steps,
         device=device,
+        use_mup=use_mup,
     )
     trainer.run_loop()
 

@@ -35,11 +35,14 @@ def sample(
     device=torch.device("cuda:1"),
     seed=0,
     change_val=False,
+    use_mup=False,
+    leaps=1,
+    temperature=1.0,
 ):
     zero.improve_reproducibility(seed)
 
     model, D = get_model_dataset(
-        T_dict, model_params, real_data_path, device, change_val
+        T_dict, model_params, real_data_path, device, change_val, use_mup
     )
     model.load_state_dict(torch.load(model_path, map_location="cpu"))
 
@@ -58,7 +61,7 @@ def sample(
             empirical_class_dist[0],
         )
         x_gen, y_gen = diffusion.sample_all(
-            num_samples, y_dist=empirical_class_dist.float(), batch_size=batch_size
+            num_samples, y_dist=empirical_class_dist.float(), batch_size=batch_size, leaps=leaps, temperature=temperature
         )
 
     elif disbalance == "fill":
@@ -72,7 +75,7 @@ def sample(
             distrib[i] = 1
             num_samples = val_major - empirical_class_dist[i].item()
             x_temp, y_temp = diffusion.sample_all(
-            num_samples, y_dist=empirical_class_dist.float(), batch_size=batch_size
+            num_samples, y_dist=empirical_class_dist.float(), batch_size=batch_size, leaps=leaps, temperature=temperature
             )
             x_gen.append(x_temp)
             y_gen.append(y_temp)
@@ -82,7 +85,7 @@ def sample(
 
     else:
         x_gen, y_gen = diffusion.sample_all(
-            num_samples, y_dist=empirical_class_dist.float(), batch_size=batch_size
+            num_samples, y_dist=empirical_class_dist.float(), batch_size=batch_size, leaps=leaps, temperature=temperature
         )
 
     # try:
