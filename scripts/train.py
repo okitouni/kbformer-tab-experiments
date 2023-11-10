@@ -22,6 +22,7 @@ class Trainer:
         steps,
         device=torch.device("cuda:1"),
         use_mup=False,
+        verbose=True,
     ):
         self.diffusion = diffusion
         self.ema_model = deepcopy(self.diffusion.model)
@@ -40,6 +41,8 @@ class Trainer:
         self.log_every = 100
         self.print_every = 500
         self.ema_every = 1000
+
+        self.verbose = verbose
 
     def _anneal_lr(self, step):
         frac_done = step / self.steps
@@ -62,13 +65,13 @@ class Trainer:
         return loss, torch.zeros_like(loss)
 
     def run_loop(self):
-        pbar = tqdm.tqdm(total=self.steps)
+        pbar = tqdm.trange(self.steps) if self.verbose else range(self.steps)
         step = 0
         curr_loss_multi = 0.0
         curr_loss_gauss = 0.0
 
         curr_count = 0
-        while step < self.steps:
+        for step in pbar:
             x, y = next(self.train_iter)
             batch_loss_multi, batch_loss_gauss = self._run_step(x, y)
 
@@ -97,9 +100,7 @@ class Trainer:
 
             update_ema(self.ema_model.parameters(), self.diffusion.model.parameters())
 
-            step += 1
-            pbar.update(1)
-            pbar.set_description_str(f"{batch_loss_multi.item()}")
+            if self.verbose: pbar.set_description_str(f"{batch_loss_multi.item()}")
 
 
 def train(
@@ -120,6 +121,7 @@ def train(
     seed=0,
     change_val=False,
     use_mup=False,
+    verbose=True,
 ):
     real_data_path = os.path.normpath(real_data_path)
     parent_dir = os.path.normpath(parent_dir)
@@ -191,6 +193,7 @@ def train(
         steps=steps,
         device=device,
         use_mup=use_mup,
+        verbose=verbose,
     )
     trainer.run_loop()
 

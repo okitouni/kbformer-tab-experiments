@@ -40,10 +40,9 @@ def objective(trial):
     depth = trial.suggest_int("depth", 1, 2)
 
     batch_size = trial.suggest_categorical("batch_size", [8192])
-    # init_var = trial.suggest_loguniform("init_var", 1e-2, 2)
-    init_var = 1
     steps = 5_000
-    # steps = trial.suggest_categorical("steps", [10])  # for debug
+    init_var = 1
+    # init_var = trial.suggest_loguniform("init_var", 1e-2, 2)
 
     # sampling params
     # tempreture = trial.suggest_uniform("tempreture", 0.8, 1.2)
@@ -55,6 +54,8 @@ def objective(trial):
     base_config["train"]["main"]["steps"] = steps
     base_config["train"]["main"]["batch_size"] = batch_size
     base_config["train"]["main"]["weight_decay"] = 0.0
+    base_config["train"]["main"]["verbose"] = False
+    
     base_config["model_params"]["rtdl_params"][
         "num_decoder_mixtures"
     ] = num_decoder_mixtures
@@ -88,7 +89,7 @@ def objective(trial):
             "--config",
             f'{exps_path / "config.toml"}',
             "--train",
-            "--change_val",
+            # "--change_val",
         ],
         check=True,
     )
@@ -108,7 +109,7 @@ def objective(trial):
                 f'{exps_path / "config.toml"}',
                 "--sample",
                 "--eval",
-                "--change_val",
+                # "--change_val",
             ],
             check=True,
         )
@@ -134,7 +135,7 @@ study = optuna.create_study(
     sampler=optuna.samplers.TPESampler(seed=0),
 )
 
-study.optimize(objective, n_trials=100, show_progress_bar=True)
+study.optimize(objective, n_trials=100)
 
 best_config_path = parent_path / f"{prefix}_best/config.toml"
 best_config = study.best_trial.user_attrs["config"]
